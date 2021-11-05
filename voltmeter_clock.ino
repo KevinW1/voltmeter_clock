@@ -27,7 +27,7 @@ void handleButton(AceButton*, uint8_t, uint8_t);
 bool set_mode = false;
 byte selected_meter = 0;    // hours = 0, minutes = 1, seconds = 2
 
-Encoder encoder(8, 7);
+Encoder encoder(7, 8);
 long old_position = 0;
 byte light_intensity = 255;
 
@@ -86,10 +86,10 @@ void update_from_clock() {
     seconds = clock.getSecond();
 }
 
-void display() {
-    analogWrite(HOUR_PIN, hours * 11.087);     //convert from 0-23 to 0-255
-    analogWrite(MINUTE_PIN, minutes * 4.322);  //convert from 0-59 to 0-255
-    analogWrite(SECOND_PIN, seconds * 4.322);  //convert from 0-59 to 0-255
+void display() {    
+    analogWrite(HOUR_PIN, hours * 10.625);     //convert from 0-24 to 0-255
+    analogWrite(MINUTE_PIN, minutes * 4.25);  //convert from 0-60 to 0-255
+    analogWrite(SECOND_PIN, seconds * 4.25);  //convert from 0-60 to 0-255
     Serial.print(hours, DEC);
     Serial.print(":");
     Serial.print(minutes, DEC);
