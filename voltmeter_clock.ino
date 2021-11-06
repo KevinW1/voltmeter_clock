@@ -7,7 +7,6 @@
 #include <AceButton.h>  // 1.9.1
 using namespace ace_button;
 
-
 // Settings
 #define SECOND_PIN 11
 #define MINUTE_PIN 10
@@ -19,7 +18,6 @@ using namespace ace_button;
 #define ENTER_SETUP_MS 1000  // duration to hold button to enter timeset
 #define SET_METER_MS 300     // duration of press to set a meter
 #define ENCODER_PULSE_PER_DETENT 4
-
 
 AceButton button(BUTTON_PIN, HIGH);
 // Forward reference to prevent Arduino compiler becoming confused.
@@ -39,6 +37,47 @@ byte seconds = 0;
 byte minutes = 0;
 byte hours = 0;
 
+float hours_lut[] = {
+    0, 0,
+    6, 62,
+    12, 124,
+    18, 188,
+    24, 255
+};
+
+float minutes_lut[] = {
+    0, 0,
+    5, 23,
+    10, 44,
+    15, 66,
+    20, 86,
+    25, 107,
+    30, 128,
+    35, 148,
+    40, 169,
+    45, 190,
+    50, 210, // known good
+    55, 232, // gets sticky here
+    60, 255  // known good
+};
+
+float seconds_lut[] = {
+    0, 0,
+    5, 21,
+    10, 43,
+    15, 63,
+    20, 84,
+    25, 105,
+    30, 126, // sticky here
+    35, 147,
+    40, 169,
+    45, 190,
+    50, 212, // known good
+    55, 234, // gets sticky here
+    60, 255  // known good
+};
+
+
 void setup () {
     pinMode(SECOND_PIN, OUTPUT);
     pinMode(MINUTE_PIN, OUTPUT);
@@ -56,13 +95,11 @@ void setup () {
     buttonConfig->setLongPressDelay(ENTER_SETUP_MS);
 
     Wire.begin();
-    Serial.begin(57600);
-
     update_lights();
 }
 
-void loop () {
 
+void loop () {
     EVERY_N_MILLISECONDS(5) {
         button.check();
         read_encoder();
@@ -80,29 +117,26 @@ void loop () {
     }
 }
 
+
 void update_from_clock() {
     hours = clock.getHour(h12Flag, pmFlag);
     minutes = clock.getMinute();
     seconds = clock.getSecond();
 }
 
-void display() {    
-    analogWrite(HOUR_PIN, hours * 10.625);     //convert from 0-24 to 0-255
-    analogWrite(MINUTE_PIN, minutes * 4.25);  //convert from 0-60 to 0-255
-    analogWrite(SECOND_PIN, seconds * 4.25);  //convert from 0-60 to 0-255
-    Serial.print(hours, DEC);
-    Serial.print(":");
-    Serial.print(minutes, DEC);
-    Serial.print(":");
-    Serial.println(seconds, DEC);
+
+void display() {
+    analogWrite(HOUR_PIN, meter_map(hours, hours_lut, 10));         //convert from 0-24 to 0-255
+    analogWrite(MINUTE_PIN, meter_map(minutes, minutes_lut, 26));   //convert from 0-60 to 0-255
+    analogWrite(SECOND_PIN, meter_map(seconds, seconds_lut, 26));   //convert from 0-60 to 0-255
 }
+
 
 void set_clock() {
     clock.setClockMode(false);    // set to 24h
     clock.setHour(hours);
     clock.setMinute(minutes);
     clock.setSecond(seconds);
-    Serial.println("===== Set Clock =====");
 }
 
 
@@ -110,10 +144,10 @@ void handleButton(AceButton* /* button */, uint8_t eventType, uint8_t buttonStat
     switch (eventType) {
         case AceButton::kEventLongPressed:
             if (set_mode) {
-                set_clock();
-                Serial.println("Exited Setup");
+                //set_clock();
+                Serial.println("Existing Setup");
             } else {
-                Serial.println("Entered Setup");
+                Serial.println("Entering Setup");
             }
             set_mode = !set_mode;
             update_lights();
@@ -122,11 +156,11 @@ void handleButton(AceButton* /* button */, uint8_t eventType, uint8_t buttonStat
             if (set_mode) {
                 selected_meter = (selected_meter + 1) % 3;
                 update_lights();
-                Serial.println(selected_meter);
             }
             break;
     }
 }
+
 
 void read_encoder() {
     long newPosition = encoder.read();
@@ -181,14 +215,6 @@ void update_lights() {
         light_values[1] = light_intensity;
         light_values[2] = light_intensity;
     }
-
-    Serial.print("Lights: ");
-    Serial.print(light_values[0]);
-    Serial.print(" - ");
-    Serial.print(light_values[1]);
-    Serial.print(" - ");
-    Serial.println(light_values[2]);
-
     analogWrite(HOUR_LIGHT_PIN, light_values[0]);
     analogWrite(MINUTE_LIGHT_PIN, light_values[1]);
     analogWrite(SECOND_LIGHT_PIN, light_values[2]);
@@ -199,4 +225,14 @@ void update_lights() {
 // Example IO: -1 % 3 will produce 2 from this function
 int mod( int x, int y ) {
     return x < 0 ? ((x + 1) % y) + y - 1 : x % y;
+}
+
+
+// lookup table lerping
+byte meter_map(byte value, float lut[], byte lut_length) {
+    for (int i = 0; i < lut_length - 2; i = i + 2) {
+        if ((value >= lut[i]) && (value <= lut[i + 2])) {
+            return lut[i + 1] - ((lut[i + 1] - lut[i + 3]) * ((value - lut[i]) / (lut[i + 2] - lut[i])));
+        }
+    }
 }
