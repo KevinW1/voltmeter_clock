@@ -144,10 +144,7 @@ void handleButton(AceButton* /* button */, uint8_t eventType, uint8_t buttonStat
     switch (eventType) {
         case AceButton::kEventLongPressed:
             if (set_mode) {
-                //set_clock();
-                Serial.println("Existing Setup");
-            } else {
-                Serial.println("Entering Setup");
+                set_clock();
             }
             set_mode = !set_mode;
             update_lights();
