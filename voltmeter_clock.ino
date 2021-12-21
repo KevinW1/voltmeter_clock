@@ -1,9 +1,9 @@
-// Arduino IDE version 1.8.16
+// Arduino IDE version 1.8.15
 // AVR board version 1.8.3
 #include <Encoder.h>    // 1.4.2
 #include <Wire.h>   // built-in
 #include <DS3231.h> // 1.0.7
-#include <FastLED.h>  // 3.004.000, used for EVERY_N_MILLISECONDS
+#include <FastLED.h>  // 3.004.000, used for EVERY_N_MILLISECONDS and applyGamma_video()
 #include <AceButton.h>  // 1.9.1
 using namespace ace_button;
 
@@ -47,33 +47,33 @@ float hours_lut[] = {
 
 float minutes_lut[] = {
     0, 0,
-    5, 23,
-    10, 44,
+    5, 21,
+    10, 45,
     15, 66,
-    20, 86,
-    25, 107,
-    30, 128,
-    35, 148,
-    40, 169,
-    45, 190,
-    50, 210, // known good
-    55, 232, // gets sticky here
+    20, 87,
+    25, 108,
+    30, 129,
+    35, 150,
+    40, 172,
+    45, 193,
+    50, 213, // known good
+    55, 234, // gets sticky here
     60, 255  // known good
 };
 
 float seconds_lut[] = {
     0, 0,
     5, 21,
-    10, 43,
+    10, 42,
     15, 63,
     20, 84,
     25, 105,
     30, 126, // sticky here
     35, 147,
-    40, 169,
+    40, 168,
     45, 190,
     50, 212, // known good
-    55, 234, // gets sticky here
+    55, 232, // gets sticky here
     60, 255  // known good
 };
 
@@ -177,17 +177,17 @@ void handleEncoder(int amount) {
     if (set_mode) {
         switch (selected_meter) {
             case 0:
-                hours = mod((hours + amount), 24);
+                hours = constrain((hours + amount), 0, 23);
                 break;
             case 1:
-                minutes = mod((minutes + amount), 60);
+                minutes = constrain((minutes + amount), 0, 59);
                 break;
             case 2:
-                seconds = mod((seconds + amount), 60);
+                seconds = constrain((seconds + amount), 0, 59);
                 break;
         }
     } else {
-        light_intensity = mod((light_intensity + amount * 5), 260); //0-255 inclusive
+        light_intensity = constrain((light_intensity + amount * 10), 0, 255); //0-255 inclusive
         update_lights();
     }
 }
@@ -195,33 +195,29 @@ void handleEncoder(int amount) {
 
 void update_lights() {
     byte light_values[] = {0, 0, 0};
+
+    byte gamma_light_intensity = applyGamma_video(light_intensity, 2.4);
+    
     if (set_mode) {
         switch (selected_meter) {
             case 0:
-                light_values[0] = light_intensity;
+                light_values[0] = gamma_light_intensity;
                 break;
             case 1:
-                light_values[1] = light_intensity;
+                light_values[1] = gamma_light_intensity;
                 break;
             case 2:
-                light_values[2] = light_intensity;
+                light_values[2] = gamma_light_intensity;
                 break;
         }
     } else {
-        light_values[0] = light_intensity;
-        light_values[1] = light_intensity;
-        light_values[2] = light_intensity;
+        light_values[0] = gamma_light_intensity;
+        light_values[1] = gamma_light_intensity;
+        light_values[2] = gamma_light_intensity;
     }
     analogWrite(HOUR_LIGHT_PIN, light_values[0]);
     analogWrite(MINUTE_LIGHT_PIN, light_values[1]);
     analogWrite(SECOND_LIGHT_PIN, light_values[2]);
-}
-
-
-// Custom mod function as the built in % does not handle negative values as I'd like
-// Example IO: -1 % 3 will produce 2 from this function
-int mod( int x, int y ) {
-    return x < 0 ? ((x + 1) % y) + y - 1 : x % y;
 }
 
 
